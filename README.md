@@ -4,6 +4,8 @@
 인터랙티브 데모입니다. Anatomy 스킬(`wheresryan22/anatomy`)의 규칙을 따라 만든
 아이소메트릭 분해도 한 장이 페이지 전체이고, 외부 라이브러리 없이 `index.html` 하나로 동작합니다.
 
+**라이브 데모 — https://jackdinealkim.github.io/one-window-anatomy/**
+
 ## 열기
 
 `index.html`을 브라우저로 열면 됩니다(파일 더블클릭). 서버·빌드·인터넷 연결이 필요 없습니다.
@@ -42,10 +44,18 @@ LD_LIBRARY_PATH=... python3 shots.py                           # 스크린샷
 `figure.js`는 Anatomy `kit/iso-kit.mjs`와 같은 모듈 스코프에서 실행됩니다(`slabOf`, `cylinder`,
 `fitProjection`, `solidSvg` … 를 그대로 사용).
 
-## GitHub Pages로 공개하기 (선택)
+## GitHub Pages (공개 완료)
 
-기획서에 시연 URL을 넣고 싶을 때만 하면 됩니다. 수상 시 원본 파일 제출 의무가 있으므로
-저장소는 공개로 두는 편이 안전합니다.
+위 라이브 데모로 이미 공개되어 있습니다. Pages 소스는 **`gh-pages` 브랜치 / (root)** 이고,
+`main`은 원본 소스 브랜치입니다. 이 폴더 내용을 고친 뒤에는 두 브랜치에 함께 올립니다.
+
+```sh
+cd /workspace/deploy/one-window-anatomy
+git add -A && git commit -m "..."
+git push origin main && git push origin main:gh-pages
+```
+
+아래는 처음부터 다시 공개할 때의 절차입니다.
 
 1. GitHub에서 빈 공개 저장소 `one-window-anatomy`를 만듭니다(README 없이).
 2. 이 폴더의 `index.html`을 저장소 루트에 올립니다.
