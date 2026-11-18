@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Screenshots + console check for the JOIN LAB page."""
+"""Screenshots of the JOIN LAB 10-second diagnosis page.
+
+Writes the review set into ../screenshots/ and the two figures used by the
+proposal into ../../documents/one-window-2026/_build/.
+"""
 import json
 import pathlib
 
@@ -9,6 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGE = "file://" + str(ROOT / "index.html")
 OUT = ROOT / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
+DOC = ROOT.parent.parent / "documents" / "one-window-2026" / "_build"
 CHROME = "/workspace/.cache/ms-playwright/chromium-1255/chrome-linux64/chrome"
 ARGS = ["--no-sandbox", "--force-color-profile=srgb", "--single-process", "--no-zygote",
         "--disable-dev-shm-usage", "--font-render-hinting=none"]
@@ -16,70 +21,76 @@ ARGS = ["--no-sandbox", "--force-color-profile=srgb", "--single-process", "--no-
 logs = []
 
 
-def main():
-    with sync_playwright() as p:
-        b = p.chromium.launch(executable_path=CHROME, args=ARGS)
-        ctx = b.new_context(viewport={"width": 1120, "height": 1000}, device_scale_factor=2)
-        pg = ctx.new_page()
-        pg.on("pageerror", lambda e: logs.append(["pageerror", str(e)]))
-        pg.on("console", lambda m: logs.append([m.type, m.text]) if m.type in ("error", "warning") else None)
-        pg.goto(PAGE, wait_until="load")
-        pg.wait_for_timeout(1200)
-
-        def plate_shot(name, page=None):
-            el = (page or pg).query_selector(".iso-plate")
-            el.screenshot(path=str(OUT / name), timeout=60000)
-            print("saved", name, flush=True)
-
-        plate_shot("01_plate_idle.png")
-
-        pg.click("[data-group='2']")
-        pg.wait_for_timeout(700)
-        pg.click("[data-group='7']")
-        pg.wait_for_timeout(1300)
-        plate_shot("02_plate_pinned.png")
-
-        pg.click("[data-act='press']")
-        pg.wait_for_timeout(1500)
-        plate_shot("03_plate_joined.png")
-
-        pg.click("[data-act='reset']")
-        pg.wait_for_timeout(700)
-        pg.click("[data-group='0']")
-        pg.wait_for_timeout(500)
-        pg.click("[data-group='8']")
-        pg.wait_for_timeout(1200)
-        pg.click("[data-act='press']")
-        pg.wait_for_timeout(1200)
-        plate_shot("04_plate_reject.png")
-
-        pg.click("[data-act='explode']")
-        pg.wait_for_timeout(1800)
-        plate_shot("05_plate_exploded.png")
-        pg.evaluate("window.scrollTo(0,0)")
-        pg.wait_for_timeout(300)
-        pg.screenshot(path=str(OUT / "06_full_page.png"), full_page=True, timeout=60000)
-        print("saved 06_full_page.png", flush=True)
-
-        pg.click("[data-theme-toggle]")
-        pg.wait_for_timeout(800)
-        plate_shot("07_plate_dark.png")
-        pg.click("[data-theme-toggle]")
-        pg.click("[data-act='explode']")
-        pg.click("[data-act='reset']")
-        pg.wait_for_timeout(1200)
-        pg.hover("[data-drawer='7']")
-        pg.wait_for_timeout(600)
-        plate_shot("08_plate_hover.png")
-
-        m = b.new_context(viewport={"width": 390, "height": 880}, device_scale_factor=3).new_page()
-        m.on("pageerror", lambda e: logs.append(["pageerror-mobile", str(e)]))
-        m.goto(PAGE, wait_until="load")
-        m.wait_for_timeout(1200)
-        plate_shot("09_plate_mobile.png", m)
-        print("saved 09_plate_mobile.png", flush=True)
-        b.close()
-    print(json.dumps(logs, ensure_ascii=False, indent=1)[:2000], flush=True)
+def pick(pg, a, b=None):
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(150)
+    for i in ((a,) if b is None else (a, b)):
+        pg.click(f"[data-pick='{i}']")
+        pg.wait_for_timeout(220)
+    pg.wait_for_timeout(650)
 
 
-main()
+with sync_playwright() as pw:
+    b = pw.chromium.launch(executable_path=CHROME, args=ARGS)
+    ctx = b.new_context(viewport={"width": 1120, "height": 1000}, device_scale_factor=2)
+    pg = ctx.new_page()
+    pg.on("pageerror", lambda e: logs.append(["pageerror", str(e)]))
+    pg.on("console", lambda m: logs.append([m.type, m.text]) if m.type in ("error", "warning") else None)
+    pg.goto(PAGE, wait_until="load")
+    pg.wait_for_timeout(900)
+
+    def plate(name):
+        pg.query_selector(".plate").screenshot(path=str(OUT / name), timeout=60000)
+        print("saved", name, flush=True)
+
+    pg.screenshot(path=str(OUT / "01_idle_full.png"), full_page=True)
+    print("saved 01_idle_full.png", flush=True)
+    plate("02_plate_idle.png")
+
+    pick(pg, 0)
+    plate("03_plate_one.png")
+
+    pick(pg, 0, 1)
+    plate("04_plate_ok.png")
+    pg.screenshot(path=str(OUT / "05_full_ok.png"), full_page=True)
+    print("saved 05_full_ok.png", flush=True)
+
+    pick(pg, 0, 2)
+    plate("06_plate_pseudo.png")
+
+    pick(pg, 2, 4)
+    plate("07_plate_bad.png")
+
+    # 다크 테마
+    pg.click("[data-theme-toggle]")
+    pg.wait_for_timeout(400)
+    pick(pg, 0, 1)
+    plate("08_plate_dark.png")
+    pg.click("[data-theme-toggle]")
+    pg.wait_for_timeout(300)
+
+    # 제안서 그림 (결합 가능 · 가명처리 · 법적 제한)
+    pick(pg, 0, 1)
+    pg.wait_for_timeout(300)
+    pg.query_selector(".plate").screenshot(path=str(DOC / "shot_ok.png"))
+    pick(pg, 0, 2)
+    pg.query_selector(".plate").screenshot(path=str(DOC / "shot_pseudo.png"))
+    pick(pg, 2, 4)
+    pg.query_selector(".plate").screenshot(path=str(DOC / "shot_bad.png"))
+    print("saved proposal figures", flush=True)
+    ctx.close()
+    b.close()
+
+    b = pw.chromium.launch(executable_path=CHROME, args=ARGS)
+    ctx = b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=3)
+    m = ctx.new_page()
+    m.on("pageerror", lambda e: logs.append(["mobile pageerror", str(e)]))
+    m.goto(PAGE, wait_until="load")
+    m.wait_for_timeout(900)
+    pick(m, 0, 1)
+    m.screenshot(path=str(OUT / "09_mobile_full.png"), full_page=True)
+    m.query_selector(".plate").screenshot(path=str(OUT / "10_mobile_plate.png"))
+    print("saved mobile shots", flush=True)
+    b.close()
+
+print(json.dumps(logs, ensure_ascii=False)[:1200], flush=True)
